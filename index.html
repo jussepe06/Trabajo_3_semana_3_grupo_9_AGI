@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Invaders Pathfinding</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Panel lateral de controles -->
+        <aside class="control-panel">
+            <h1 class="title">SPACE<br>PATHFINDER</h1>
+            
+            <div class="control-group">
+                <label for="algorithm-select">ALGORITMO</label>
+                <select id="algorithm-select">
+                    <option value="bfs">BFS (Búsqueda a lo ancho)</option>
+                    <option value="dfs">DFS (Búsqueda en profundidad)</option>
+                    <option value="astar">A* (A-Estrella)</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="map-select">ESCENARIO</label>
+                <select id="map-select">
+                    <option value="0">1. Nivel Básico</option>
+                    <option value="1">2. Muro de Escudos</option>
+                    <option value="2">3. Laberinto Alien</option>
+                    <option value="3">4. El Zig Zag</option>
+                    <option value="4">5. Invasión Masiva</option>
+                </select>
+            </div>
+
+            <div class="button-group">
+                <button id="btn-start" class="btn btn-primary">INICIAR</button>
+                <button id="btn-reset" class="btn btn-danger">REINICIAR</button>
+            </div>
+
+            <div class="metrics-panel">
+                <h2 class="metrics-title">MÉTRICAS</h2>
+                <div class="metric">
+                    <span class="metric-label">NODOS EXP:</span>
+                    <span id="metric-nodes" class="metric-value">0</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">COSTO:</span>
+                    <span id="metric-cost" class="metric-value">0</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">TIEMPO (ms):</span>
+                    <span id="metric-time" class="metric-value">0</span>
+                </div>
+                <div id="status-message" class="status-message">LISTO</div>
+            </div>
+
+            <div class="legend">
+                <h3>LEYENDA</h3>
+                <div class="legend-item"><div class="legend-box ship"></div>Nave (Inicio)</div>
+                <div class="legend-item"><div class="legend-box ufo"></div>OVNI (Meta)</div>
+                <div class="legend-item"><div class="legend-box space"></div>Espacio (1)</div>
+                <div class="legend-item"><div class="legend-box shield"></div>Escudo (3)</div>
+                <div class="legend-item"><div class="legend-box path"></div>Ruta</div>
+            </div>
+        </aside>
+
+        <!-- Contenedor del mapa -->
+        <main class="game-area">
+            <div id="grid-container" class="grid-container">
+                <!-- Las celdas se generarán vía JS -->
+            </div>
+        </main>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
