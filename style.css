@@ -206,9 +206,9 @@ select:focus {
 
 .grid-container {
     display: grid;
-    /* Tamaño dinámico definido por CSS variables */
-    grid-template-columns: repeat(var(--grid-size, 15), 1fr);
-    grid-template-rows: repeat(var(--grid-size, 15), 1fr);
+    /* Tamaño dinámico definido por CSS variables, con espacio para cabeceras */
+    grid-template-columns: 20px repeat(var(--grid-size, 35), 1fr);
+    grid-template-rows: 20px repeat(var(--grid-size, 35), 1fr);
     gap: 1px;
     width: 100%;
     max-width: 700px;
@@ -278,12 +278,40 @@ select:focus {
     border-radius: 50%;
 }
 
-/* Colores para la leyenda */
+/* Leyenda */
 .legend-box.ship { background-color: var(--ship-color); }
 .legend-box.ufo { background-color: var(--ufo-color); border-radius: 50%; }
 .legend-box.space { background-color: var(--space-color); }
 .legend-box.shield { background-color: var(--shield-color); }
 .legend-box.path { background-color: var(--path-color); border-radius: 50%; }
+.legend-box.hit { background-color: var(--ufo-color); }
+.legend-box.miss { background-color: #555; }
+
+/* Utilidades */
+.hidden { display: none !important; }
+
+/* Cabeceras de Coordenadas */
+.coord-header {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 8px;
+    color: #fff;
+    background-color: transparent;
+    user-select: none;
+}
+
+/* Celdas Batalla Naval */
+.cell.fog {
+    background-color: var(--space-color);
+}
+.cell.hit {
+    background-color: var(--ufo-color);
+    box-shadow: 0 0 10px var(--ufo-color);
+}
+.cell.miss {
+    background-color: #555;
+}
 
 /* Responsive básico */
 @media (max-width: 900px) {

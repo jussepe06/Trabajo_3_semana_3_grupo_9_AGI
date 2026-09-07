@@ -16,15 +16,26 @@
             <h1 class="title">SPACE<br>PATHFINDER</h1>
             
             <div class="control-group">
-                <label for="algorithm-select">ALGORITMO</label>
-                <select id="algorithm-select">
-                    <option value="bfs">BFS (Búsqueda a lo ancho)</option>
-                    <option value="dfs">DFS (Búsqueda en profundidad)</option>
-                    <option value="astar">A* (A-Estrella)</option>
+                <label for="mode-select">MODO DE JUEGO</label>
+                <select id="mode-select">
+                    <option value="pathfinding">1. Buscador de Rutas (IA)</option>
+                    <option value="battleship">2. Búsqueda de Puntos (Batalla Naval)</option>
                 </select>
             </div>
 
-            <div class="control-group">
+            <div class="control-group" id="pathfinding-controls">
+                <label for="algorithm-select">ALGORITMO</label>
+                <select id="algorithm-select">
+                    <option value="bfs">BFS (Costo Uniforme)</option>
+                    <option value="dfs">DFS (Profundidad)</option>
+                    <option value="dijkstra">Dijkstra (Costo Óptimo)</option>
+                    <option value="greedy">Greedy BFS (Voraz)</option>
+                    <option value="astar">A* (A-Estrella)</option>
+                    <option value="backtracking">Backtracking</option>
+                </select>
+            </div>
+
+            <div class="control-group" id="map-controls">
                 <label for="map-select">ESCENARIO</label>
                 <select id="map-select">
                     <option value="0">1. Nivel Básico</option>
@@ -32,7 +43,16 @@
                     <option value="2">3. Laberinto Alien</option>
                     <option value="3">4. El Zig Zag</option>
                     <option value="4">5. Invasión Masiva</option>
+                    <option value="5">6. Laberinto Perfecto (Kruskal)</option>
                 </select>
+            </div>
+
+            <div class="control-group hidden" id="battleship-controls">
+                <label for="coord-input">COORDENADAS (ej. A5)</label>
+                <div style="display:flex; gap:5px;">
+                    <input type="text" id="coord-input" placeholder="A5" style="flex:1; background:var(--bg-color); color:var(--text-color); border:2px solid var(--border-color); padding:10px; font-family:'Press Start 2P', monospace; font-size:10px; outline:none; text-transform:uppercase;">
+                    <button id="btn-fire" class="btn btn-primary" style="padding:10px;">FUEGO</button>
+                </div>
             </div>
 
             <div class="button-group">
@@ -57,13 +77,20 @@
                 <div id="status-message" class="status-message">LISTO</div>
             </div>
 
-            <div class="legend">
-                <h3>LEYENDA</h3>
+            <div class="legend" id="legend-pathfinding">
+                <h3>LEYENDA PATHFINDING</h3>
                 <div class="legend-item"><div class="legend-box ship"></div>Nave (Inicio)</div>
                 <div class="legend-item"><div class="legend-box ufo"></div>OVNI (Meta)</div>
                 <div class="legend-item"><div class="legend-box space"></div>Espacio (1)</div>
                 <div class="legend-item"><div class="legend-box shield"></div>Escudo (3)</div>
                 <div class="legend-item"><div class="legend-box path"></div>Ruta</div>
+            </div>
+
+            <div class="legend hidden" id="legend-battleship">
+                <h3>LEYENDA BATALLA NAVAL</h3>
+                <div class="legend-item"><div class="legend-box hit"></div>Impacto (Destruido)</div>
+                <div class="legend-item"><div class="legend-box miss"></div>Agua (Fallo)</div>
+                <div class="legend-item"><div class="legend-box space"></div>Niebla de Guerra</div>
             </div>
         </aside>
 
