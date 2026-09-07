@@ -8,8 +8,8 @@
     --shield-color: #8b00ff;
     --space-color: #2a2d45;
     --path-color: #ffff00;
-    --frontier-color: #ffaa00;
-    --explored-color: #0055ff;
+    --frontier-color: #ff00ff;
+    --explored-color: #0033ff;
 }
 
 * {
@@ -206,10 +206,10 @@ select:focus {
 
 .grid-container {
     display: grid;
-    /* 15x15 se establecerá en JS, pero un fallback: */
-    grid-template-columns: repeat(15, 1fr);
-    grid-template-rows: repeat(15, 1fr);
-    gap: 2px;
+    /* Tamaño dinámico definido por CSS variables */
+    grid-template-columns: repeat(var(--grid-size, 15), 1fr);
+    grid-template-rows: repeat(var(--grid-size, 15), 1fr);
+    gap: 1px;
     width: 100%;
     max-width: 700px;
     aspect-ratio: 1 / 1;
@@ -260,12 +260,14 @@ select:focus {
 /* Estados de Búsqueda */
 .cell.frontier {
     background-color: var(--frontier-color);
-    opacity: 0.8;
+    box-shadow: 0 0 5px var(--frontier-color);
+    opacity: 0.9;
+    z-index: 1;
 }
 
 .cell.explored {
     background-color: var(--explored-color);
-    opacity: 0.5;
+    opacity: 0.8;
 }
 
 .cell.path {
