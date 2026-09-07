@@ -3,9 +3,9 @@
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Rajdhani:wght@500;600;700&display=swap');
 
-  .lab{--bg:#090b14;--bg2:#0f1220;--panel:#12162a;--panel2:#181d38;--linea:#2c3363;--text:#eef1ff;--muted:#8992c2;
-    --oro:#ffcb3d;--vida:#ff4d78;--armadura:#33e0ff;--camino:#3cf0a3;--jefe:#d162ff;--sombra:rgba(0,0,0,.55);
-    --pared:#141833;--piso:#1d2340;--borde:#343d70;--cerrado:rgba(51,224,255,.32);--frontera:#ff9d2e}
+  .lab{--bg:#f4ede4;--bg2:#e8decb;--panel:#e8decb;--panel2:#d8ccb6;--linea:#c3b399;--text:#4a3b2c;--muted:#7c6a58;
+    --oro:#d18c00;--vida:#d93838;--armadura:#2998d6;--camino:#30b370;--jefe:#9a3fb5;--sombra:rgba(0,0,0,.15);
+    --pared:#7a6d5f;--piso:#fbf8f5;--borde:#d1c5b4;--cerrado:rgba(100,160,255,.45);--frontera:#ff7b00}
 
   body{background:var(--bg);margin:0}
   .lab{font-family:'Rajdhani',system-ui,sans-serif;font-weight:600;color:var(--text);min-height:100vh;padding:14px;
@@ -166,6 +166,7 @@
         <canvas id="cv" width="900" height="620"></canvas>
         <div class="row" style="margin-top:9px;justify-content:center">
           <button id="b-play" class="big latir">▶ Buscar</button>
+          <button id="b-pausa" class="big">⏸ Pausa</button>
           <button id="b-paso">👣 Un paso</button>
           <button id="b-reset">↺ Reiniciar sala</button>
           <button id="b-mapa">🗺️ Nueva mazmorra</button>
@@ -222,7 +223,7 @@
         </div>
         <div class="scroll" style="margin-top:8px"><table>
           <thead><tr><th style="text-align:left">Algoritmo</th><th>Nodos exp.</th><th>Pasos</th>
-            <th>Costo</th><th>Memoria</th><th>Oro</th><th>Óptimo</th><th>Resultado</th></tr></thead>
+            <th>Costo</th><th>Memoria</th><th>Tiempo (ms)</th><th>Oro</th><th>Óptimo</th><th>Resultado</th></tr></thead>
           <tbody id="sim-tabla"></tbody></table></div>
         <div class="msj" id="sim-msj"></div>
       </div>
@@ -235,7 +236,7 @@
         </div>
         <div class="scroll" style="margin-top:8px"><table>
           <thead><tr><th style="text-align:left">Algoritmo</th><th>Nodos exp.</th><th>Pasos</th>
-            <th>Costo</th><th>Memoria</th><th>Oro</th><th>Óptimo</th><th>Resultado (promedio)</th></tr></thead>
+            <th>Costo</th><th>Memoria</th><th>Tiempo (ms)</th><th>Oro</th><th>Óptimo</th><th>Resultado (promedio)</th></tr></thead>
           <tbody id="torneo-tabla"></tbody></table></div>
         <div class="msj" id="torneo-msj"></div>
       </div>
@@ -304,11 +305,11 @@ let nivelSnapshot={vida,armadura,oro};
 let CELL=40;
 const cv=$('cv'), ctx=cv.getContext('2d');
 
-const PAL={fondo:'#0d1024',pared:'#141833',piso:'#1d2340',borde:'#343d70',
-  cerrado:'rgba(51,224,255,.32)',frontera:'#ff9d2e',camino:'rgba(60,240,163,.42)'};
+const PAL={fondo:'#f4ede4',pared:'#7a6d5f',piso:'#fbf8f5',borde:'#d1c5b4',
+  cerrado:'rgba(100,160,255,.45)',frontera:'#ff7b00',camino:'rgba(48,179,112,.6)'};
 const ICONS={objeto:'🎁',combate:'⚔️',jefe:'💀',meta:'🌀'};
-const TINTS={objeto:'rgba(255,203,61,.30)',combate:'rgba(255,77,120,.26)',
-  jefe:'rgba(209,98,255,.32)',meta:'rgba(60,240,163,.32)'};
+const TINTS={objeto:'rgba(209,140,0,.30)',combate:'rgba(217,56,56,.28)',
+  jefe:'rgba(154,63,181,.32)',meta:'rgba(48,179,112,.34)'};
 
 /* ═══════════ NIVELES DE DIFICULTAD ═══════════
    Cambian el daño/pérdida de armadura, el oro obtenido y CUÁNTAS salas de enemigos/jefes hay. */
@@ -664,7 +665,7 @@ function actualizarBotonPlay(){
   if(modo==='manual'){ $('b-play').innerHTML='🎮 Modo manual'; return; }
   if(fase==='gameover'){ $('b-play').innerHTML='💀 Fin de la partida'; return; }
   const etiqueta=fase==='caminando'?'Avanzar':'Buscar';
-  $('b-play').innerHTML=corriendo?('⏸ Pausa'):('▶ '+etiqueta);
+  $('b-play').innerHTML='▶ '+etiqueta;
   $('b-play').classList.toggle('latir',!corriendo);
 }
 
@@ -694,8 +695,12 @@ function setModo(m){
 ['bfs','dfs','astar','manual'].forEach(k=>$('b-'+k).onclick=()=>setModo(k));
 $('b-play').onclick=()=>{
   if(modo==='manual'||fase==='gameover') return;
-  if(fase==='idle'){ iniciarBusqueda(); corriendo=true; }
-  else corriendo=!corriendo;
+  if(fase==='idle'){ iniciarBusqueda(); }
+  corriendo=true;
+  actualizarBotonPlay();
+};
+$('b-pausa').onclick=()=>{
+  corriendo=false;
   actualizarBotonPlay();
 };
 $('b-paso').onclick=()=>{
@@ -771,8 +776,11 @@ function simularNivel(algoritmo,seed,estado){
   const salasSim=colocarSalas(g,rng,inicio,dificultad);
   const meta=metaPosDe(salasSim);
   const a=crearBusqueda(algoritmo,g,inicio,meta);
-  let guard=0; while(a.paso()&&guard++<200000){}
-  const res={expandidos:a.expandidos,generados:a.generados,maxFrontera:a.maxFrontera,pasos:0,optimo:false,murio:false};
+  let guard=0;
+  const T=(typeof performance!=='undefined'?performance.now():Date.now());
+  while(a.paso()&&guard++<200000){}
+  const ms=(typeof performance!=='undefined'?performance.now():Date.now())-T;
+  const res={expandidos:a.expandidos,generados:a.generados,maxFrontera:a.maxFrontera,pasos:0,optimo:false,murio:false,tiempo:ms};
   if(!a.exito) return res;
   res.pasos=a.camino.length-1;
   const refDist=distancias(g,inicio); // distancia mínima real (BFS) a cada celda de esta mazmorra
@@ -793,20 +801,20 @@ function simularNivel(algoritmo,seed,estado){
 const TOPE_SEGURIDAD=100000;
 function correrSimulacion(algoritmo,seedBase){
   const estado={vida:20,armadura:20,oro:0,mundo:1,subnivel:1};
-  let expTot=0,genTot=0,memMax=0,pasosTot=0,nivelesJugados=0,nivelesOptimos=0,n=0;
+  let expTot=0,genTot=0,memMax=0,pasosTot=0,nivelesJugados=0,nivelesOptimos=0,n=0,tiempoTot=0;
   for(n=1;n<=TOPE_SEGURIDAD;n++){
     const seed=seedBase+n*97;
     const r=simularNivel(algoritmo,seed,estado);
-    expTot+=r.expandidos; genTot+=r.generados; memMax=Math.max(memMax,r.maxFrontera); pasosTot+=r.pasos;
+    expTot+=r.expandidos; genTot+=r.generados; memMax=Math.max(memMax,r.maxFrontera); pasosTot+=r.pasos; tiempoTot+=r.tiempo;
     nivelesJugados++; if(r.optimo) nivelesOptimos++;
     if(r.murio){
       const costoProm=nivelesJugados?+(pasosTot/nivelesJugados).toFixed(1):0;
-      return {algoritmo,expandidos:expTot,generados:genTot,memoria:memMax,pasos:pasosTot,costoProm,oro:estado.oro,
+      return {algoritmo,expandidos:expTot,generados:genTot,memoria:memMax,pasos:pasosTot,costoProm,oro:estado.oro,tiempo:tiempoTot,
         nivelesJugados,nivelesOptimos,resultado:'Cayó en el nivel '+estado.mundo+'-'+estado.subnivel,murio:true};
     }
   }
   const costoProm=nivelesJugados?+(pasosTot/nivelesJugados).toFixed(1):0;
-  return {algoritmo,expandidos:expTot,generados:genTot,memoria:memMax,pasos:pasosTot,costoProm,oro:estado.oro,
+  return {algoritmo,expandidos:expTot,generados:genTot,memoria:memMax,pasos:pasosTot,costoProm,oro:estado.oro,tiempo:tiempoTot,
     nivelesJugados,nivelesOptimos,resultado:'Alcanzó el tope de seguridad ('+TOPE_SEGURIDAD+' niveles) sin caer',murio:false};
 }
 function ejecutarComparacion(){
@@ -814,13 +822,13 @@ function ejecutarComparacion(){
   const resultados=['bfs','dfs','astar'].map(a=>correrSimulacion(a,seedBase));
   const tb=$('sim-tabla'); tb.innerHTML='';
   $('sim-tabla').parentElement.parentElement.querySelector('thead tr').innerHTML =
-    '<th style="text-align:left">Algoritmo</th><th>Nodos exp.</th><th>Pasos</th><th>Costo</th><th>Memoria</th><th>Oro</th><th>Óptimo</th><th>Resultado</th>';
+    '<th style="text-align:left">Algoritmo</th><th>Nodos exp.</th><th>Pasos</th><th>Costo</th><th>Memoria</th><th>Tiempo (ms)</th><th>Oro</th><th>Óptimo</th><th>Resultado</th>';
   for(const r of resultados){
     const pct=r.nivelesJugados?Math.round(100*r.nivelesOptimos/r.nivelesJugados):0;
     const [optHtml,optColor]=celdaOptimo(pct);
     tb.insertAdjacentHTML('beforeend',
       `<tr><td class="n">${nomAlgo(r.algoritmo)}</td><td>${r.expandidos}</td><td>${r.pasos}</td>`+
-      `<td>${r.costoProm}</td><td>${r.memoria}</td><td>🥇 ${r.oro}</td><td style="color:${optColor};font-weight:700">${optHtml}</td>`+
+      `<td>${r.costoProm}</td><td>${r.memoria}</td><td><b>${r.tiempo.toFixed(1)}</b></td><td>🥇 ${r.oro}</td><td style="color:${optColor};font-weight:700">${optHtml}</td>`+
       `<td style="color:${r.murio?'var(--vida)':'var(--camino)'};text-align:left">${r.resultado}</td></tr>`);
   }
   $('sim-msj').textContent='Dificultad: '+DIFICULTADES[dificultad].nombre+'. "Costo" es la distancia media (en pasos) del camino que el algoritmo elige hasta la meta en cada nivel. "Óptimo" indica si encontró, en cada nivel jugado, el camino más corto posible a la meta (garantizado en BFS/A*; no garantizado en DFS).';
@@ -841,13 +849,13 @@ function ejecutarTorneo(){
   $('torneo-msj').className='msj warn';
   // pequeño respiro para que el navegador pinte el mensaje antes del cómputo pesado
   setTimeout(()=>{
-    const acc={}; algos.forEach(a=>acc[a]={exp:0,pasos:0,costo:0,mem:0,oro:0,optPct:0,niveles:0,caidas:0});
+    const acc={}; algos.forEach(a=>acc[a]={exp:0,pasos:0,costo:0,mem:0,oro:0,optPct:0,niveles:0,caidas:0,tiempo:0});
     for(let i=0;i<N;i++){
       const seedBase=Math.floor(Math.random()*900000)+1;
       for(const a of algos){
         const r=correrSimulacion(a,seedBase);
         const s=acc[a];
-        s.exp+=r.expandidos; s.pasos+=r.pasos; s.costo+=r.costoProm; s.mem+=r.memoria; s.oro+=r.oro;
+        s.exp+=r.expandidos; s.pasos+=r.pasos; s.costo+=r.costoProm; s.mem+=r.memoria; s.oro+=r.oro; s.tiempo+=r.tiempo;
         s.optPct+=r.nivelesJugados?(100*r.nivelesOptimos/r.nivelesJugados):0;
         s.niveles+=r.nivelesJugados; if(r.murio) s.caidas++;
       }
@@ -857,10 +865,10 @@ function ejecutarTorneo(){
       const s=acc[a];
       const exp=Math.round(s.exp/N), pasos=Math.round(s.pasos/N), costo=+(s.costo/N).toFixed(1), mem=Math.round(s.mem/N),
         oro=Math.round(s.oro/N), optPct=Math.round(s.optPct/N), niveles=(s.niveles/N).toFixed(1),
-        tasaCaida=Math.round(100*s.caidas/N);
+        tasaCaida=Math.round(100*s.caidas/N), tiempo=+(s.tiempo/N).toFixed(1);
       const [optHtml,optColor]=celdaOptimo(optPct);
       tb.insertAdjacentHTML('beforeend',
-        `<tr><td class="n">${nomAlgo(a)}</td><td>${exp}</td><td>${pasos}</td><td>${costo}</td><td>${mem}</td>`+
+        `<tr><td class="n">${nomAlgo(a)}</td><td>${exp}</td><td>${pasos}</td><td>${costo}</td><td>${mem}</td><td><b>${tiempo}</b></td>`+
         `<td>🥇 ${oro}</td><td style="color:${optColor};font-weight:700">${optHtml}</td>`+
         `<td style="text-align:left">Cae en promedio tras <b>${niveles}</b> niveles (${tasaCaida}% de las ${N} partidas)</td></tr>`);
     }
