@@ -1,15 +1,14 @@
 <meta charset="UTF-8">
 <title>Mazmorra Search — Roguelike IA</title>
 <style>
-  .lab{--bg:#0b0704;--panel:#1c130c;--panel2:#28190f;--linea:#4a3521;--text:#f3e9d6;--muted:#b6a186;
-    --oro:#ffd23f;--vida:#ff4d4d;--armadura:#4cc4ff;--camino:#39d98a;--jefe:#c25be0;--sombra:rgba(0,0,0,.5);
-    --pared:#241a10;--piso:#3c2c1a;--borde:#5c4128;--cerrado:rgba(120,90,55,.55);--frontera:#ffb020}
-  body{background:#0b0704;margin:0}
-  .lab{font-family:'Segoe UI',system-ui,sans-serif;color:var(--text);background:
-    radial-gradient(ellipse at 50% -10%,#241708 0%,var(--bg) 60%);min-height:100vh;padding:12px;
+  .lab{--bg:#f4ede4;--panel:#e8decb;--panel2:#d8ccb6;--linea:#c3b399;--text:#4a3b2c;--muted:#7c6a58;
+    --oro:#d18c00;--vida:#d93838;--armadura:#2998d6;--camino:#30b370;--jefe:#9a3fb5;--sombra:rgba(0,0,0,.15);
+    --pared:#7a6d5f;--piso:#fbf8f5;--borde:#d1c5b4;--cerrado:rgba(100,160,255,.45);--frontera:#ff7b00;--lodo:#b3a28c}
+  body{background:var(--bg);margin:0}
+  .lab{font-family:'Segoe UI',system-ui,sans-serif;color:var(--text);background:var(--bg);min-height:100vh;padding:12px;
     box-sizing:border-box}
   .top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:9px}
-  h1{margin:0;font-size:1.25rem;letter-spacing:1px;color:var(--oro);text-shadow:0 0 14px rgba(255,210,63,.3)}
+  h1{margin:0;font-size:1.25rem;letter-spacing:1px;color:var(--oro);text-shadow:0 0 14px rgba(209,140,0,.4)}
   .top .sub{color:var(--muted);font-size:.76rem}
   .toolbar{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:.76rem;color:var(--muted)}
   .toolbar b{color:var(--oro)}
@@ -85,6 +84,9 @@
       <span>Nivel</span><b id="lb-nivel">1-1</b>
       <span>Semilla</span>
       <input id="in-seed" type="number" value="1337">
+      <label style="display:flex;align-items:center;gap:4px;cursor:pointer;">
+        <input type="checkbox" id="chk-lodo"> Terreno con Lodo (Costo x3)
+      </label>
       <button id="b-seed">↻</button>
     </span>
   </div>
@@ -119,7 +121,9 @@
           <button id="b-bfs" class="on">BFS</button>
           <button id="b-dfs">DFS</button>
           <button id="b-astar">A*</button>
-          <button id="b-manual">🎮 Manual</button>
+          <button id="b-dijkstra">Dijkstra</button>
+          <button id="b-greedy">Greedy</button>
+          <button id="b-manual">🎮</button>
         </div>
         <div class="slider">🔎 Búsqueda
           <input type="range" id="sl-exp" min="1" max="60" value="12"><b id="lb-exp">12/s</b></div>
@@ -194,11 +198,11 @@ let nivelSnapshot={vida,armadura,oro};
 let CELL=40;
 const cv=$('cv'), ctx=cv.getContext('2d');
 
-const PAL={fondo:'#150e08',pared:'#241a10',piso:'#3c2c1a',borde:'#5c4128',
-  cerrado:'rgba(120,90,55,.55)',frontera:'#ffb020',camino:'rgba(57,217,138,.4)'};
+const PAL={fondo:'#f4ede4',pared:'#7a6d5f',piso:'#fbf8f5',borde:'#d1c5b4',
+  cerrado:'rgba(100,160,255,.45)',frontera:'#ff7b00',camino:'rgba(48,179,112,.6)',lodo:'#b3a28c'};
 const ICONS={objeto:'🎁',combate:'⚔️',jefe:'💀',meta:'🌀'};
-const TINTS={objeto:'rgba(255,210,63,.30)',combate:'rgba(255,77,77,.28)',
-  jefe:'rgba(194,91,224,.32)',meta:'rgba(57,217,138,.34)'};
+const TINTS={objeto:'rgba(209,140,0,.30)',combate:'rgba(217,56,56,.28)',
+  jefe:'rgba(154,63,181,.32)',meta:'rgba(48,179,112,.34)'};
 
 /* ═══════════ MAZMORRA (laberinto tipo backtracker recursivo) ═══════════ */
 function generarMazmorra(sd){
@@ -269,6 +273,12 @@ function colocarSalas(g,rng,ini){
 function nuevaMazmorra(sd){
   seed=sd; $('in-seed').value=sd;
   grid=generarMazmorra(seed);
+  if($('chk-lodo').checked){
+    const rl=mulberry32(seed^0x1234);
+    for(let r=1;r<ROWS-1;r++)for(let c=1;c<COLS-1;c++)
+      if(grid[r][c]!==0 && rl()<0.25) grid[r][c]=2;
+    grid[inicio.r][inicio.c]=1;
+  }
   const rng=mulberry32(seed^0x9e37);
   salas=colocarSalas(grid,rng,inicio);
   heroe={r:inicio.r,c:inicio.c};
@@ -281,9 +291,10 @@ function nuevaMazmorra(sd){
   msj('Entraste al nivel '+mundo+'-'+subnivel+'. Elige un algoritmo y pulsa Buscar.','');
 }
 
-/* ═══════════ MOTOR DE BÚSQUEDA (DFS / BFS / A*) ═══════════ */
+/* ═══════════ MOTOR DE BÚSQUEDA (DFS / BFS / A* / Dijkstra / Greedy) ═══════════ */
 function crearBusqueda(tipo,G,ini,fin){
   const piso=(r,c)=>r>=0&&r<ROWS&&c>=0&&c<COLS&&G[r][c]!==0;
+  const costoPaso=(r,c)=>G[r][c]===2?3:1;
   const h=(r,c)=>Math.abs(r-fin.r)+Math.abs(c-fin.c);
   const raiz={r:ini.r,c:ini.c,g:0,h:h(ini.r,ini.c),padre:null}; raiz.f=raiz.g+raiz.h;
   const S={tipo,frontera:[raiz],cerrados:new Set(),mejorG:{},expandidos:0,generados:1,maxFrontera:1,
@@ -293,9 +304,15 @@ function crearBusqueda(tipo,G,ini,fin){
     if(!this.frontera.length) return -1;
     if(tipo==='dfs') return this.frontera.length-1;
     if(tipo==='bfs') return 0;
-    let b=0; for(let i=1;i<this.frontera.length;i++){ const a=this.frontera[i],q=this.frontera[b];
-      if(a.f<q.f||(a.f===q.f&&a.h<q.h)) b=i; }
-    return b; };
+    let b=0; 
+    for(let i=1;i<this.frontera.length;i++){ 
+      const a=this.frontera[i], q=this.frontera[b];
+      if(tipo==='astar'){ if(a.f<q.f||(a.f===q.f&&a.h<q.h)) b=i; }
+      else if(tipo==='dijkstra'){ if(a.g<q.g||(a.g===q.g&&a.h<q.h)) b=i; }
+      else if(tipo==='greedy'){ if(a.h<q.h||(a.h===q.h&&a.g<q.g)) b=i; }
+    }
+    return b; 
+  };
   S.paso=function(){
     if(this.fin) return false;
     const T=(typeof performance!=='undefined'?performance.now():Date.now());
@@ -316,8 +333,8 @@ function crearBusqueda(tipo,G,ini,fin){
     for(const [dr,dc] of DIRS){
       const nr=n.r+dr,nc=n.c+dc,nk=nr+','+nc;
       if(!piso(nr,nc)||this.cerrados.has(nk)) continue;
-      const g=n.g+1;
-      if(tipo==='astar'){
+      const g=n.g+costoPaso(nr,nc);
+      if(tipo==='astar'||tipo==='dijkstra'){
         if(this.mejorG[nk]===undefined||g<this.mejorG[nk]){
           this.mejorG[nk]=g;
           const nodo={r:nr,c:nc,g,h:h(nr,nc),padre:n}; nodo.f=g+nodo.h;
@@ -436,8 +453,14 @@ function dibujar(){
   for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
     const x=c*CELL,y=r*CELL;
     if(grid[r][c]===0){ ctx.fillStyle=PAL.pared; ctx.fillRect(x,y,CELL,CELL); continue; }
-    ctx.fillStyle=PAL.piso; ctx.fillRect(x,y,CELL,CELL);
+    ctx.fillStyle = grid[r][c]===2 ? PAL.lodo : PAL.piso; 
+    ctx.fillRect(x,y,CELL,CELL);
     ctx.strokeStyle=PAL.borde; ctx.lineWidth=1; ctx.strokeRect(x+.5,y+.5,CELL-1,CELL-1);
+    if(grid[r][c]===2){
+      ctx.fillStyle='rgba(255,255,255,0.4)';
+      ctx.font=(CELL*0.4)+'px serif';
+      ctx.fillText('💧', x+CELL/2, y+CELL/2);
+    }
   }
   if(fase==='buscando'&&algo){
     ctx.fillStyle=PAL.cerrado;
@@ -463,11 +486,14 @@ function dibujar(){
   ctx.font=fs+'px serif';
   ctx.fillText('🏁',inicio.c*CELL+CELL/2,inicio.r*CELL+CELL/2);
   ctx.font=(fs*1.15)+'px serif';
+  ctx.shadowColor='rgba(209,140,0,0.8)'; ctx.shadowBlur=8;
   ctx.fillText('🥷',heroe.c*CELL+CELL/2,heroe.r*CELL+CELL/2);
+  ctx.shadowBlur=0;
 }
 
 /* ═══════════ INTERFAZ: ds, stats, leyenda ═══════════ */
-const DSNOM={dfs:['PILA (LIFO)','pop ↑'],bfs:['COLA (FIFO)','shift ←'],astar:['COLA DE PRIORIDAD','min f']};
+const DSNOM={dfs:['PILA (LIFO)','pop ↑'],bfs:['COLA (FIFO)','shift ←'],astar:['COLA DE PRIORIDAD','min f'],
+  dijkstra:['COLA DE PRIOR. (g)','min g'],greedy:['COLA DE PRIOR. (h)','min h']};
 function pintarDS(){
   const box=$('ds');
   if(modo==='manual'||!algo){ box.innerHTML='<div class="it">🧠 —</div>'; $('log').textContent=''; return; }
@@ -508,12 +534,12 @@ function actualizarStatsUI(){
 }
 function pintarLeyenda(){
   $('leyenda').innerHTML=[
-    ['#241a10','Pared'],['#3c2c1a','Pasillo'],['rgba(120,90,55,.8)','Sala explorada (cerrada)'],
-    ['#ffb020','Frontera (por explorar)'],['#39d98a','Camino recorrido']
+    ['var(--pared)','Pared'],['var(--piso)','Piso (1)'],['var(--lodo)','Lodo 💧 (3)'],['rgba(100,160,255,.6)','Sala explorada'],
+    ['var(--frontera)','Frontera (por explorar)'],['var(--camino)','Camino recorrido']
   ].map(([c,l])=>`<span><span class="sw" style="background:${c}"></span>${l}</span>`).join('')+
   '<span>🎁 Objeto</span><span>⚔️ Combate</span><span>💀 Jefe</span><span>🌀 Portal</span><span>🥷 Héroe</span>';
 }
-function nomAlgo(m){ return m==='astar'?'A*':m.toUpperCase(); }
+function nomAlgo(m){ return {astar:'A*',dijkstra:'Dijkstra',greedy:'Greedy',bfs:'BFS',dfs:'DFS'}[m]||m; }
 function msj(s,cl){ const e=$('msj'); e.textContent=s; e.className='msj '+(cl||''); }
 function actualizarBotonPlay(){
   if(modo==='manual'){ $('b-play').innerHTML='🎮 Modo manual'; return; }
@@ -540,13 +566,13 @@ function frame(ts){
 /* ═══════════ EVENTOS ═══════════ */
 function setModo(m){
   modo=m; corriendo=false; algo=null; camino=null; caminoIdx=0; fase='idle';
-  for(const k of ['bfs','dfs','astar','manual']) $('b-'+k).classList.toggle('on',k===m);
+  for(const k of ['bfs','dfs','astar','dijkstra','greedy','manual']) $('b-'+k).classList.toggle('on',k===m);
   $('dpad').classList.toggle('oculto',m!=='manual');
   heroe={r:inicio.r,c:inicio.c};
   actualizarBotonPlay(); actualizarStatsUI(); pintarDS();
   msj('');
 }
-['bfs','dfs','astar','manual'].forEach(k=>$('b-'+k).onclick=()=>setModo(k));
+['bfs','dfs','astar','dijkstra','greedy','manual'].forEach(k=>$('b-'+k).onclick=()=>setModo(k));
 $('b-play').onclick=()=>{
   if(modo==='manual'||fase==='gameover') return;
   if(fase==='idle'){ iniciarBusqueda(); corriendo=true; }
@@ -571,6 +597,7 @@ $('b-reset').onclick=()=>{
 };
 $('b-mapa').onclick=()=>nuevaMazmorra(Math.floor(Math.random()*99999));
 $('b-partida').onclick=()=>nuevaPartida();
+$('chk-lodo').onchange=()=>nuevaMazmorra(seed);
 $('b-seed').onclick=()=>nuevaMazmorra(Math.max(1,Math.floor(+$('in-seed').value)||1));
 $('sl-exp').oninput=e=>{ velBusqueda=+e.target.value; $('lb-exp').textContent=velBusqueda+'/s'; };
 $('sl-mov').oninput=e=>{ velMov=+e.target.value; $('lb-mov').textContent=velMov+'/s'; };
@@ -616,9 +643,10 @@ function simularNivel(algoritmo,seed,estado){
   const salasSim=colocarSalas(g,rng,inicio);
   const a=crearBusqueda(algoritmo,g,inicio,metaPosDe(salasSim));
   let guard=0; while(a.paso()&&guard++<200000){}
-  const res={expandidos:a.expandidos,generados:a.generados,maxFrontera:a.maxFrontera,pasos:0,murio:false};
+  const res={expandidos:a.expandidos,generados:a.generados,maxFrontera:a.maxFrontera,pasos:0,costo:0,murio:false};
   if(!a.exito) return res;
   res.pasos=a.camino.length-1;
+  res.costo=a.camino.reduce((acc,c,i)=>i===0?0:acc+(g[c[0]][c[1]]===2?3:1),0);
   for(let i=1;i<a.camino.length;i++){
     const [r,c]=a.camino[i], k=r+','+c, sala=salasSim[k];
     if(sala&&!sala.visitado){
@@ -633,30 +661,39 @@ function simularNivel(algoritmo,seed,estado){
 // Corre una partida completa (varios niveles seguidos) para un algoritmo, hasta que caiga o sobreviva "maxNiveles".
 function correrSimulacion(algoritmo,seedBase,maxNiveles){
   const estado={vida:20,armadura:20,oro:0,mundo:1,subnivel:1};
-  let expTot=0,genTot=0,memMax=0,pasosTot=0;
+  let expTot=0,genTot=0,memMax=0,pasosTot=0,costoTot=0;
   for(let n=1;n<=maxNiveles;n++){
     const seed=seedBase+n*97;
     const r=simularNivel(algoritmo,seed,estado);
-    expTot+=r.expandidos; genTot+=r.generados; memMax=Math.max(memMax,r.maxFrontera); pasosTot+=r.pasos;
+    expTot+=r.expandidos; genTot+=r.generados; memMax=Math.max(memMax,r.maxFrontera); pasosTot+=r.pasos; costoTot+=r.costo;
     if(r.murio){
-      return {algoritmo,expandidos:expTot,generados:genTot,memoria:memMax,pasos:pasosTot,oro:estado.oro,
+      return {algoritmo,expandidos:expTot,generados:genTot,memoria:memMax,pasos:pasosTot,costo:costoTot,oro:estado.oro,
         resultado:'Cayó en el nivel '+estado.mundo+'-'+estado.subnivel,murio:true};
     }
   }
-  return {algoritmo,expandidos:expTot,generados:genTot,memoria:memMax,pasos:pasosTot,oro:estado.oro,
+  return {algoritmo,expandidos:expTot,generados:genTot,memoria:memMax,pasos:pasosTot,costo:costoTot,oro:estado.oro,
     resultado:'Sobrevivió '+maxNiveles+' niveles',murio:false};
 }
 function ejecutarComparacion(n){
   const seedBase=Math.floor(Math.random()*90000)+1;
-  const resultados=['bfs','dfs','astar'].map(a=>correrSimulacion(a,seedBase,n));
+  const resultados=['bfs','dfs','astar','dijkstra','greedy'].map(a=>correrSimulacion(a,seedBase,n));
+  
+  // Calcular mejor costo
+  const validos = resultados.filter(r=>!r.murio);
+  const mejorCosto = validos.length ? Math.min(...validos.map(r=>r.costo)) : Infinity;
+
   const tb=$('sim-tabla'); tb.innerHTML='';
+  $('sim-tabla').parentElement.parentElement.querySelector('thead tr').innerHTML = 
+    '<th style="text-align:left">Algoritmo</th><th>Nodos exp.</th><th>Pasos</th><th>Costo</th><th>Memoria</th><th>Oro</th><th>Resultado</th>';
+
   for(const r of resultados){
+    const opt = (!r.murio && r.costo === mejorCosto) ? '⭐ ' : '';
     tb.insertAdjacentHTML('beforeend',
       `<tr><td class="n">${nomAlgo(r.algoritmo)}</td><td>${r.expandidos}</td><td>${r.pasos}</td>`+
-      `<td>${r.memoria}</td><td>🥇 ${r.oro}</td>`+
+      `<td><b>${opt}${r.costo}</b></td><td>${r.memoria}</td><td>🥇 ${r.oro}</td>`+
       `<td style="color:${r.murio?'var(--vida)':'var(--camino)'};text-align:left">${r.resultado}</td></tr>`);
   }
-  $('sim-msj').textContent='Comparación completada sobre '+n+' niveles: los 3 agentes enfrentaron exactamente la misma secuencia de mazmorras.';
+  $('sim-msj').textContent='Comparación completada sobre '+n+' niveles. Notarás que el lodo afecta el "Costo", y algoritmos ciegos (como BFS) ya no serán los óptimos frente a Dijkstra o A*.';
   $('sim-msj').className='msj ok';
 }
 
